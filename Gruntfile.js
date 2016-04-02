@@ -9,7 +9,7 @@ module.exports = function( grunt ) {
 
 		addtextdomain: {
 			options: {
-				textdomain: 'wordpress-plugin-kidslink',
+				textdomain: 'wordpress-plugin-taxonomy-filter',
 			},
 			target: {
 				files: {
@@ -30,8 +30,8 @@ module.exports = function( grunt ) {
 			target: {
 				options: {
 					domainPath: '/languages',
-					mainFile: 'wordpress-plugin-kidslink.php',
-					potFilename: 'wordpress-plugin-kidslink.pot',
+					mainFile: 'wordpress-plugin-taxonomy-filter.php',
+					potFilename: 'wordpress-plugin-taxonomy-filter.pot',
 					potHeaders: {
 						poedit: true,
 						'x-poedit-keywordslist': true
