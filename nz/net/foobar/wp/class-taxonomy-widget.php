@@ -34,7 +34,8 @@ class WidgetTaxonomy extends \WP_Widget
     public function widget($args, $instance)
     {
         $tax = get_taxonomy($instance['tax']);
-        $walker = $instance['filter'] ? new WalkerTaxonomyFilter($tax->name, $instance['any_all']) : new WalkerTaxonomy($tax->name);
+        $walker = $instance['filter'] ?
+            new WalkerTaxonomyFilter($tax->name, $instance['any_all']) : new WalkerTaxonomy($tax->name);
         $title = apply_filters('widget_title', $instance['title']);
         $order = !empty($instance['order']) ? explode(',', $instance['order']) : array();
         $terms = $instance['descend'] ? get_terms(array('taxonomy' => $tax->name)) : terms($tax, $order);
