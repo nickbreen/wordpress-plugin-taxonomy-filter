@@ -3,10 +3,6 @@ namespace nz\net\foobar\wp;
 
 class WidgetTaxonomy extends \WP_Widget
 {
-    // '+' works as AND, ',' works as OR/IN
-    const DELIM_ANY = ',';
-    const DELIM_ALL = '+';
-
     public function __construct()
     {
         parent::__construct(
@@ -33,14 +29,15 @@ class WidgetTaxonomy extends \WP_Widget
      *                        Widget arguments.
      * @param array $instance
      *                        Saved values from database.
+     * @SuppressWarnings(PHPMD.NPathComplexity)
      */
     public function widget($args, $instance)
     {
         $tax = get_taxonomy($instance['tax']);
-        $walker = new WalkerTaxonomy($tax->name);
+        $walker = $instance['filter'] ? new WalkerTaxonomyFilter($tax->name, $instance['any_all']) : new WalkerTaxonomy($tax->name);
         $title = apply_filters('widget_title', $instance['title']);
-        $order = !empty($instance['order']) ? explode(',', $instance['order']) : false;
-        $terms = static::getTerms($tax, $order, 'descend' == $instance['descend']);
+        $order = !empty($instance['order']) ? explode(',', $instance['order']) : array();
+        $terms = $instance['descend'] ? get_terms(array('taxonomy' => $tax->name)) : terms($tax, $order);
         echo $args['before_widget'];
         if (!empty($instance['title'])) {
             echo $args['before_title'].$title.$args['after_title'];
@@ -48,12 +45,16 @@ class WidgetTaxonomy extends \WP_Widget
         if ($instance['p']) {
             echo '<p>'.$instance['p'].'</p>';
         }
+        list($term, $counts)  = postCountPerTerm($tax, $instance['cum_counts'], $instance['filter']);
         printf(
             '<ul class="%s">%s</ul>',
             $tax->query_var,
             $walker->walk($terms, 0, [
                 'instance' => $instance,
-                'postCountPerTerm' => postCountPerTerm($tax->name)
+                'counts' => $counts,
+                'current' => currentTerms($tax),
+                'term' => $term,
+                'ancestry' => ancestry(currentTerms($tax), $order)
             ])
         );
         echo $args['after_widget'];
@@ -89,79 +90,11 @@ class WidgetTaxonomy extends \WP_Widget
      *                            Previously saved values from database.
      *
      * @return array Updated safe values to be saved.
+     * @SuppressWarnings(PHPMD.UnusedFormalParameter)
      */
     public function update($newInstance, $oldInstance)
     {
-        $instance = array_map('strip_tags', $newInstance);
-        $ret = array_merge($this->defaults, $oldInstance, $newInstance, $instance);
-        return $ret;
-        $instance = array();
-        $fields = array('title', 'tax', 'counts', 'cum_counts', 'order', 'descend', 'p', 'filter', 'any_all', 'rel');
-        foreach ($fields as $i) {
-            $instance[$i] = !empty($newInstance[$i]) ? strip_tags(
-                $newInstance[$i]
-            ) : $oldInstance[$i];
-        }
-        return $instance;
-    }
-
-    private function getTerms($tax, $order, $descend)
-    {
-        // If we're always decsending, just get all terms.
-        if ($descend) {
-            return get_terms(array('taxonomy' => $tax->name));
-        }
-        // Start with nothing
-        $terms = array();
-        // If we've specified an order, add these (as the root terms).
-        if ($order) {
-            $terms = array_merge($terms, get_terms(array(
-                'include' => $order,
-                'orderby' => 'include',
-                'hide_empty' => false,
-            )));
-        }
-        // Add the current terms':
-        foreach (static::currentTerms($tax) as $term) {
-            // children
-            $terms = array_merge($terms, get_terms(array(
-                'taxonomy' => $tax->name,
-                'parent' => $term->term_id,
-                'hide_empty' => false,
-            )));
-            // siblings, unless their parent is the root, or in the top-level order!
-            $terms = array_merge($terms, $term->parent && !in_array($term->term_id, $order) ? get_terms(array(
-                'taxonomy' => $tax->name,
-                'parent' => $term->parent,
-                'hide_empty' => false,
-            )) : array());
-            // ancestors
-            if ($term->parent) {
-                for ($parent = get_term($term->parent); $parent->parent; $parent = get_term($parent->parent)) {
-                    $terms[] = $parent;
-                }
-            }
-        }
-        return $terms;
-    }
-
-    /**
-     * @SuppressWarnings("CamelCase")
-     */
-    public function currentTerms($tax)
-    {
-        global $wp_query;
-        $currentTerms = array();
-        if (!empty($wp_query->tax_query->queries)) {
-            foreach ($wp_query->tax_query->queries as $tq) {
-                if ($tq['taxonomy'] == $tax->name) {
-                    foreach ($tq['terms'] as $term) {
-                        $currentTerms[] = get_term_by('slug', $term, $tq['taxonomy']);
-                    }
-                }
-            }
-        }
-        return $currentTerms;
+        return array_merge($this->defaults, array_map('strip_tags', $newInstance));
     }
 
     private $defaults = array(
@@ -170,47 +103,122 @@ class WidgetTaxonomy extends \WP_Widget
       'cum_counts'=> '',
       'order'=> '',
       'descend'=> '',
-      'filter'=> 'filter',
+      'filter'=> '',
       'p'=> '',
       'any_all'=> 'any',
-      'rel'=> 'none',
+      'rel'=> '',
     );
 }
 
-/**
- * Count the number of posts per term in the current query with the specified taxonomy.
- * [
- *    term_id => count,
- * ]
- *
- * @SuppressWarnings(PHPMD.CamelCaseVariableName)
- */
-function postCountPerTerm($tax)
+function terms($tax, $order)
 {
-    global $wp_query;
-    // Strip the pagination parameters from the query
-    $args = array_merge(
-        $wp_query->query,
-        array($tax => '', 'offset' => 0, 'posts_per_page' => -1, 'paged' => 0)
-    );
-
-    // Initialise a new query with the un-paginated query arguments
-    $query = new \WP_Query($args);
-    $posts = $query->get_posts();
-
-    // Build a list of each posts' terms
-    $postsTerms = array();
-    foreach ($posts as $post) {
-        $postsTerms[$post->ID] = wp_get_post_terms($post->ID, $tax);
+    $terms = $order ? get_terms(array( // If we've specified an order, get only those specified
+        'include' => $order,
+        'orderby' => 'include',
+        'hide_empty' => false,
+    )) : get_terms(array( // othewise fetch all the root terms
+        'taxonomy' => $tax->name,
+    ));
+    // Add the current terms':
+    $currentTerms = currentTerms($tax);
+    // ancestors, excluding currents and roots
+    $terms = array_merge($terms, array_filter(
+        ancestry($currentTerms, $order),
+        function ($term) use ($order, $currentTerms) {
+            return !in_array($term->term_id, $order)
+                && !in_array($term, $currentTerms)
+                && $term->parent;
+        }
+    ));
+    foreach ($currentTerms as $term) {
+        // children
+        $terms = array_merge($terms, get_terms(array(
+            'taxonomy' => $tax->name,
+            'parent' => $term->term_id,
+            'hide_empty' => false,
+        )));
+        // siblings, unless their parent is the root, or in the top-level order!
+        $terms = array_merge($terms, $term->parent  ? get_terms(array(
+            'taxonomy' => $tax->name,
+            'parent' => $term->parent,
+            'hide_empty' => false,
+            'exclude' => $order + array_map(function ($term) {
+                return $term->term_id;
+            }, $currentTerms)
+        )) : array());
     }
+    return $terms;
+}
 
-    // Count up the posts that match each term
-    $termPostCounts = array();
-    foreach ($postsTerms as $postTerms) {
-        foreach ($postTerms as $postTerm) {
-            @$termPostCounts[$postTerm->term_id] += 1;
+function ancestry($terms, $terminalTermIds = array())
+{
+    $ancestry = array();
+    foreach (array_filter($terms, function ($term) use ($terminalTermIds) {
+        return // before we even start, only process:
+          $term->parent // when there're ancestors to get
+          && !in_array($term->term_id, $terminalTermIds); // unless there're ancestors we don't want
+    }) as $term) {
+        for ($parent = get_term($term->parent);
+          !is_wp_error($parent);
+          $parent = get_term($parent->parent)) {
+            $ancestry[] = $parent;
+            if (in_array($parent->term_id, $terminalTermIds)) {
+                break;
+            }
         }
     }
+    return $ancestry;
+}
 
-    return $termPostCounts;
+/**
+ * @SuppressWarnings("CamelCase")
+ */
+function currentTerms($tax)
+{
+    global $wp_query;
+    $currentTerms = array();
+    if (!empty($wp_query->tax_query->queries)) {
+        foreach ($wp_query->tax_query->queries as $tq) {
+            if ($tq['taxonomy'] == $tax->name) {
+                foreach ($tq['terms'] as $term) {
+                    $currentTerms[] = get_term_by('slug', $term, $tq['taxonomy']);
+                }
+            }
+        }
+    }
+    return $currentTerms;
+}
+
+/**
+ * Count the number of posts per term in the current query *without* the specified taxonomy *filter* in effect.
+ * @return list of: the queried object (i.e. the principal term) and the assoc-array of post counts ([term_id => count).
+ *         note that the queries object will be a WP_Error object if the query is not a taxonomy term query!
+ * @SuppressWarnings(PHPMD.CamelCaseVariableName)
+ */
+function postCountPerTerm($tax, $accumulateCounts, $filter)
+{
+    global $wp_query;
+    $args = array_merge(
+        $wp_query->query,
+        array('nopaging' => true, 'fields' => 'ids')
+    );
+    if ($filter) {
+        unset($args[$tax->query_var]);
+    }
+    $query = new \WP_Query(); // Initialise a new query
+    $postIds = $query->query($args); // with the un-paginated query arguments
+    $counts = array();
+    foreach ($postIds as $postId) {
+        foreach (wp_get_post_terms($postId, $tax->name) as $term) {
+            @$counts[$term->term_id] += 1;
+            if ($accumulateCounts) {
+                for ($term = get_term($term->parent);
+                    !is_wp_error($term);
+                    $term = get_term($term->parent)) {
+                    @$counts[$term->term_id] += 1;
+                }
+            }
+        }
+    }
+    return array($query->get_queried_object(), $counts);
 }

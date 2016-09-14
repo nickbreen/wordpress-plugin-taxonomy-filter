@@ -12,6 +12,7 @@
  */
 
 require_once 'nz/net/foobar/wp/class-taxonomy-walker.php';
+require_once 'nz/net/foobar/wp/class-taxonomy-walker-filter.php';
 require_once 'nz/net/foobar/wp/class-taxonomy-widget.php';
 
 add_action('widgets_init', function () {

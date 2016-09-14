@@ -4,7 +4,6 @@ namespace nz\net\foobar\wp;
 
 /**
  * @SuppressWarnings(PHPMD.CamelCasePropertyName)
- * @SuppressWarnings(PSR1.Methods.CamelCapsMethodName.NotCamelCaps)
  */
 class WalkerTaxonomy extends \Walker
 {
@@ -40,19 +39,44 @@ class WalkerTaxonomy extends \Walker
     /**
      * @SuppressWarnings(PHPMD.CamelCaseMethodName)
      * @SuppressWarnings(PHPMD.UnusedFormalParameter)
+     * @SuppressWarnings(PHPMD.NPathComplexity)
      */
     public function start_el(&$output, $term, $depth = 0, $args = array(), $termId = 0) // @codingStandardsIgnoreLine
     {
+        $count = array_key_exists($term->term_id, $args['counts']) ? $args['counts'][$term->term_id] : 0;
+        $class = array();
+        if (in_array($term, $args['current'])) {
+            $class[] = 'current-cat';
+        } elseif (in_array($term->term_id, array_map(function ($term) {
+            return $term->parent;
+        }, $args['current']))) {
+            $class[] = 'current-cat-parent';
+        } elseif (in_array($term, $args['ancestry'])) {
+            $class[] = 'current-cat-ancestor';
+        }
         $output .= sprintf(
-            '<li class="%s" data-term-id="%s" data-term-slug="%s"><a href="%s" class="%s">%s</a>%s',
-            '', //$liClass
+            '<li class="%s" data-term-id="%s" data-term-slug="%s">',
+            implode(' ', $class),
             $term->term_id,
-            $term->slug,
-            get_term_link($term), // $aHref
-            '', // $aClass
-            $term->name,
-            '' // $liContent
+            $term->slug
         );
+        $output .= sprintf(
+            '<a href="%s"%s>%s</a>',
+            $this->link($term, $args),
+            $args['instance']['rel'] ? sprintf(' rel="%s"', $args['instance']['rel']) : '',
+            $term->name
+        );
+        if ($args['instance']['counts']) {
+            $output .= sprintf('<span>&nbsp;(%d)</span>', $count);
+        }
+    }
+
+    /**
+     * @SuppressWarnings(PHPMD.UnusedFormalParameter)
+     */
+    protected function link($term, $args = array())
+    {
+        return get_term_link($term);
     }
 
     /**
