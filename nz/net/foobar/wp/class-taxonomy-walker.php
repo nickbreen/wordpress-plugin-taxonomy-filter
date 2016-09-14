@@ -11,6 +11,11 @@ class WalkerTaxonomy extends \Walker
     public $tree_type = 'category';
     public $db_fields = array ('parent' => 'parent', 'id' => 'term_id');
 
+    public function __construct($tax)
+    {
+        $this->tree_type = $tax;
+    }
+
     /**
      * @SuppressWarnings(PHPMD.CamelCaseMethodName)
      * @SuppressWarnings(PHPMD.UnusedFormalParameter)
@@ -39,9 +44,11 @@ class WalkerTaxonomy extends \Walker
     public function start_el(&$output, $term, $depth = 0, $args = array(), $termId = 0) // @codingStandardsIgnoreLine
     {
         $output .= sprintf(
-            '<li class="%s"><a href="%s" class="%s">%s</a>%s',
+            '<li class="%s" data-term-id="%s" data-term-slug="%s"><a href="%s" class="%s">%s</a>%s',
             '', //$liClass
-            '', // $aHref
+            $term->term_id,
+            $term->slug,
+            get_term_link($term), // $aHref
             '', // $aClass
             $term->name,
             '' // $liContent
@@ -52,7 +59,7 @@ class WalkerTaxonomy extends \Walker
      * @SuppressWarnings(PHPMD.CamelCaseMethodName)
      * @SuppressWarnings(PHPMD.UnusedFormalParameter)
      */
-    public function end_el(&$output, $category, $depth = 0, $args = array()) // @codingStandardsIgnoreLine
+    public function end_el(&$output, $term, $depth = 0, $args = array()) // @codingStandardsIgnoreLine
     {
         $output .= '</li>';
     }

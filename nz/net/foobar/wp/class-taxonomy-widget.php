@@ -36,12 +36,12 @@ class WidgetTaxonomy extends \WP_Widget
      */
     public function widget($args, $instance)
     {
-        $walker = new WalkerTaxonomy;
         $tax = get_taxonomy($instance['tax']);
-        $walker->tree_type = $tax->name;
-        $terms = get_categories(array('taxonomy' => $tax->name));
-        echo $args['before_widget'];
+        $walker = new WalkerTaxonomy($tax->name);
         $title = apply_filters('widget_title', $instance['title']);
+        $order = !empty($instance['order']) ? explode(',', $instance['order']) : false;
+        $terms = static::getTerms($tax, $order, 'descend' == $instance['descend']);
+        echo $args['before_widget'];
         if (!empty($instance['title'])) {
             echo $args['before_title'].$title.$args['after_title'];
         }
@@ -51,7 +51,10 @@ class WidgetTaxonomy extends \WP_Widget
         printf(
             '<ul class="%s">%s</ul>',
             $tax->query_var,
-            $walker->walk($terms, 0, $instance)
+            $walker->walk($terms, 0, [
+                'instance' => $instance,
+                'postCountPerTerm' => postCountPerTerm($tax->name)
+            ])
         );
         echo $args['after_widget'];
     }
@@ -89,13 +92,8 @@ class WidgetTaxonomy extends \WP_Widget
      */
     public function update($newInstance, $oldInstance)
     {
-        user_error('def:='.print_r($this->defaults, true));
-        user_error('old:='.print_r($oldInstance, true));
-        user_error('new:='.print_r($newInstance, true));
         $instance = array_map('strip_tags', $newInstance);
-        user_error('mrg:='.print_r($instance, true));
         $ret = array_merge($this->defaults, $oldInstance, $newInstance, $instance);
-        user_error('ret:='.print_r($ret, true));
         return $ret;
         $instance = array();
         $fields = array('title', 'tax', 'counts', 'cum_counts', 'order', 'descend', 'p', 'filter', 'any_all', 'rel');
@@ -105,6 +103,65 @@ class WidgetTaxonomy extends \WP_Widget
             ) : $oldInstance[$i];
         }
         return $instance;
+    }
+
+    private function getTerms($tax, $order, $descend)
+    {
+        // If we're always decsending, just get all terms.
+        if ($descend) {
+            return get_terms(array('taxonomy' => $tax->name));
+        }
+        // Start with nothing
+        $terms = array();
+        // If we've specified an order, add these (as the root terms).
+        if ($order) {
+            $terms = array_merge($terms, get_terms(array(
+                'include' => $order,
+                'orderby' => 'include',
+                'hide_empty' => false,
+            )));
+        }
+        // Add the current terms':
+        foreach (static::currentTerms($tax) as $term) {
+            // children
+            $terms = array_merge($terms, get_terms(array(
+                'taxonomy' => $tax->name,
+                'parent' => $term->term_id,
+                'hide_empty' => false,
+            )));
+            // siblings, unless their parent is the root, or in the top-level order!
+            $terms = array_merge($terms, $term->parent && !in_array($term->term_id, $order) ? get_terms(array(
+                'taxonomy' => $tax->name,
+                'parent' => $term->parent,
+                'hide_empty' => false,
+            )) : array());
+            // ancestors
+            if ($term->parent) {
+                for ($parent = get_term($term->parent); $parent->parent; $parent = get_term($parent->parent)) {
+                    $terms[] = $parent;
+                }
+            }
+        }
+        return $terms;
+    }
+
+    /**
+     * @SuppressWarnings("CamelCase")
+     */
+    public function currentTerms($tax)
+    {
+        global $wp_query;
+        $currentTerms = array();
+        if (!empty($wp_query->tax_query->queries)) {
+            foreach ($wp_query->tax_query->queries as $tq) {
+                if ($tq['taxonomy'] == $tax->name) {
+                    foreach ($tq['terms'] as $term) {
+                        $currentTerms[] = get_term_by('slug', $term, $tq['taxonomy']);
+                    }
+                }
+            }
+        }
+        return $currentTerms;
     }
 
     private $defaults = array(
@@ -122,9 +179,13 @@ class WidgetTaxonomy extends \WP_Widget
 
 /**
  * Count the number of posts per term in the current query with the specified taxonomy.
+ * [
+ *    term_id => count,
+ * ]
+ *
  * @SuppressWarnings(PHPMD.CamelCaseVariableName)
  */
-function availableTerms($tax)
+function postCountPerTerm($tax)
 {
     global $wp_query;
     // Strip the pagination parameters from the query
