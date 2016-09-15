@@ -100,14 +100,15 @@ class WidgetTaxonomy extends \WP_Widget
 
     private $defaults = array(
       'tax'=> 'category',
-      'counts'=> '',
-      'cum_counts'=> '',
-      'order'=> '',
-      'descend'=> '',
-      'filter'=> '',
-      'p'=> '',
-      'any_all'=> 'any',
-      'rel'=> '',
+      'counts'=> false,
+      'cum_counts'=> false,
+      'order'=> null,
+      'descend'=> false,
+      'filter'=> false,
+      'p'=> null,
+      'any_all'=> 'any', // or 'all'
+      'rel'=> false,
+      'hide_empty' => false
     );
 }
 
