@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name: foo//bar Taxonomy Filter
- * Version: 1.0.0
+ * Version: 1.0.1
  * Description: Provides a taxonomy filter widget to refine searches and archive page listings.
  * Author: nickbreennz
  * Author URI: https://www.foobar.net.nz

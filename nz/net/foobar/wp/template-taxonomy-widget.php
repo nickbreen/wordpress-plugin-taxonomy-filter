@@ -67,7 +67,7 @@
     <input class="" id="<?php echo $this->get_field_id('cum_counts'); ?>"
         name="<?php echo $this->get_field_name('cum_counts'); ?>"
         type="checkbox" <?php echo $cum_counts == 'show' ? 'checked' : ''; ?> value="show">
-    <label for="<?php echo $this->get_field_id('cum_counts'); ?>"><?php _e('Show Cummulative Counts'); ?></label><br>
+    <label for="<?php echo $this->get_field_id('cum_counts'); ?>"><?php _e('Cummulative Counts'); ?></label><br>
     When checked displays the count of posts <i>in the current loop/query</i> that have the term <i>or a descendant of
     the term</i>.
 </p>
@@ -79,18 +79,19 @@
     <label for="<?php echo $this->get_field_id('hide_empty'); ?>"><?php _e('Hide Empty Terms'); ?></label><br>
     When checked supresses display of terms with a zero count of posts <i>in the current loop/query</i> that have the
     term <i>or a descendant of the term</i>. This is generally what is expected when <tt>Filter</tt> is enabled and
-    needs <tt>Show Cummulative Counts</tt> enabled to work sensibly.
+    needs <tt>Cummulative Counts</tt> enabled to work sensibly.
 </p>
 
 <p>
     Link <tt>rel</tt>:<br>
     <label><input type="checkbox" value="nofollow" name="<?php echo $this->get_field_name('rel'); ?>"
-        <?php echo $rel == 'nofollow' ? 'checked' : ''; ?>>&nbsp;<tt>nofollow</tt>: discourages search engine indexing.</label>
+    <?php echo $rel == 'nofollow' ? 'checked' : ''; ?>>&nbsp;<tt>nofollow</tt>:
+    discourages search engine indexing.</label>
 </p>
 
 <p>
     <label for="<?php echo $this->get_field_id('order'); ?>"><?php _e('Top Level Order:'); ?></label>
     <input class="widefat" id="<?php echo $this->get_field_id('order'); ?>"
         name="<?php echo $this->get_field_name('order'); ?>" type="text" value="<?php echo esc_attr($order); ?>"><br>
-    Comma separated list of term ID's to restirct and order the root terms.
+    Comma separated list of term ID's to restrict and order the root terms.
 </p>

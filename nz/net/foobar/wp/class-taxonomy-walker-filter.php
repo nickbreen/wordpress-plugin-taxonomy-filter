@@ -24,18 +24,13 @@ class WalkerTaxonomyFilter extends WalkerTaxonomy
     {
         global $wp_query;
         $tax = get_taxonomy($term->taxonomy);
-        $slugs = isset($wp_query->query[$tax->query_var]) ?
-            explode($this->delimiter, $wp_query->query[$tax->query_var]) : array();
+        $slugs = array_filter(explode($this->delimiter, $wp_query->get($tax->query_var)));
         $slugs = in_array($term->slug, $slugs) ?
             array_diff($slugs, array($term->slug)) : array_merge($slugs, array($term->slug));
-        if ($slugs) {
-            return sprintf(
-                '%s?%s=%s',
-                get_term_link($args['term']),
-                $tax->query_var,
-                implode($this->delimiter, $slugs)
-            );
-        }
-        return get_term_link($args['term']); //parent::link($term, $args);
+        $query = array_filter(array_merge(
+            array_intersect_key($wp_query->query_vars, array_flip(array('s', $tax->query_var))),
+            array($tax->query_var => implode($this->delimiter, $slugs))
+        ));
+        return trim(sprintf('%s?%s', $args['term'] ? get_term_link($args['term']) : '/', build_query($query)), '?');
     }
 }

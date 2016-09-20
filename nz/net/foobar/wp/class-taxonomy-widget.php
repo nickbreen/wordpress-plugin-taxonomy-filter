@@ -120,6 +120,7 @@ function terms($tax, $order)
         'hide_empty' => false,
     )) : get_terms(array( // othewise fetch all the root terms
         'taxonomy' => $tax->name,
+        'parent' => 0,
     ));
     // Add the current terms':
     $currentTerms = currentTerms($tax);
