@@ -1,0 +1,18 @@
+{
+    "name": "nickbreen/wordpress-plugin-taxonomy-filter",
+    "description": "Display WooCommerce variations in a table layout.",
+    "type": "wordpress-plugin",
+    "require": {
+        "composer/installers": "^1.0",
+        "php": ">=5.3"
+    },
+    "license": "GPLv3",
+    "repositories": [{
+        "type": "vcs",
+        "url": "https://github.com/nickbreen/wordpress-plugin-taxonomy-filter"
+    }],
+    "authors": [{
+        "name": "Nick Breen",
+        "email": "nick@foobar.net.nz"
+    }]
+}
