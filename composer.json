@@ -1,6 +1,6 @@
 {
     "name": "nickbreen/wordpress-plugin-taxonomy-filter",
-    "description": " Provides a taxonomy filter widget to refine searches and archive page listings. ",
+    "description": "Display WooCommerce variations in a table layout.",
     "type": "wordpress-plugin",
     "require": {
         "composer/installers": "^1.0",
